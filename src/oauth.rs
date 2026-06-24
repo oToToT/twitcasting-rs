@@ -170,3 +170,51 @@ impl OAuthClientBuilder {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use url::Url;
+
+    use super::OAuthClient;
+
+    fn test_client() -> OAuthClient {
+        OAuthClient::builder(
+            "my-client-id",
+            "my-client-secret",
+            Url::parse("https://myapp.example/callback").unwrap(),
+        )
+        .unwrap()
+        .base_url(Url::parse("https://apiv2.twitcasting.tv/").unwrap())
+        .build()
+        .unwrap()
+    }
+
+    #[test]
+    fn authorization_code_url_includes_params() {
+        let url = test_client().authorization_code_url(Some("csrf_token"));
+        let query: Vec<_> = url.query_pairs().collect();
+        assert!(
+            url.as_str()
+                .starts_with("https://apiv2.twitcasting.tv/oauth2/authorize")
+        );
+        assert!(query.contains(&("client_id".into(), "my-client-id".into())));
+        assert!(query.contains(&("response_type".into(), "code".into())));
+        assert!(query.contains(&("state".into(), "csrf_token".into())));
+    }
+
+    #[test]
+    fn authorization_code_url_without_state() {
+        let url = test_client().authorization_code_url(None);
+        let query: Vec<_> = url.query_pairs().collect();
+        assert!(query.contains(&("response_type".into(), "code".into())));
+        assert!(!query.iter().any(|(k, _)| k == "state"));
+    }
+
+    #[test]
+    fn implicit_authorization_url() {
+        let url = test_client().implicit_authorization_url(Some("state1"));
+        let query: Vec<_> = url.query_pairs().collect();
+        assert!(query.contains(&("response_type".into(), "token".into())));
+        assert!(query.contains(&("state".into(), "state1".into())));
+    }
+}

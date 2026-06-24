@@ -395,3 +395,296 @@ impl WebhookEvents {
         &self.0
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{CommentId, MovieId, ScreenId, UserId, UserRef};
+
+    use super::*;
+
+    // ── MovieListRequest ────────────────────────────────────────────────────
+
+    #[test]
+    fn movie_list_request_default_omits_all_params() {
+        let value = serde_json::to_value(MovieListRequest::default()).unwrap();
+        assert_eq!(value, serde_json::json!({}));
+    }
+
+    #[test]
+    fn movie_list_request_with_all_params() {
+        let req = MovieListRequest::default()
+            .offset(10)
+            .limit(20)
+            .slice_id(MovieId::new("500"));
+        let value = serde_json::to_value(req).unwrap();
+        assert_eq!(value["offset"], 10);
+        assert_eq!(value["limit"], 20);
+        assert_eq!(value["slice_id"], "500");
+    }
+
+    #[test]
+    fn movie_list_request_partial_params() {
+        let req = MovieListRequest::default().limit(5);
+        let value = serde_json::to_value(req).unwrap();
+        assert_eq!(value["limit"], 5);
+        assert!(value.get("offset").is_none());
+        assert!(value.get("slice_id").is_none());
+    }
+
+    // ── CommentListRequest ───────────────────────────────────────────────────
+
+    #[test]
+    fn comment_list_request_default_omits_all_params() {
+        let value = serde_json::to_value(CommentListRequest::default()).unwrap();
+        assert_eq!(value, serde_json::json!({}));
+    }
+
+    #[test]
+    fn comment_list_request_with_slice_id() {
+        let req = CommentListRequest::default()
+            .offset(0)
+            .limit(50)
+            .slice_id(CommentId::new("100"));
+        let value = serde_json::to_value(req).unwrap();
+        assert_eq!(value["offset"], 0);
+        assert_eq!(value["limit"], 50);
+        assert_eq!(value["slice_id"], "100");
+    }
+
+    // ── UpcomingSchedulesRequest ─────────────────────────────────────────────
+
+    #[test]
+    fn upcoming_schedules_default_omits_in_days() {
+        let value = serde_json::to_value(UpcomingSchedulesRequest::default()).unwrap();
+        assert_eq!(value, serde_json::json!({}));
+    }
+
+    #[test]
+    fn upcoming_schedules_with_in_days() {
+        let req = UpcomingSchedulesRequest::default().in_days(30);
+        let value = serde_json::to_value(req).unwrap();
+        assert_eq!(value["in_days"], 30);
+    }
+
+    // ── ThumbnailOptions ─────────────────────────────────────────────────────
+
+    #[test]
+    fn thumbnail_options_defaults() {
+        let value = serde_json::to_value(ThumbnailOptions::default()).unwrap();
+        assert_eq!(value["size"], "small");
+        assert_eq!(value["position"], "latest");
+    }
+
+    #[test]
+    fn thumbnail_options_explicit() {
+        let options = ThumbnailOptions {
+            size: ThumbnailSize::Large,
+            position: ThumbnailPosition::Beginning,
+        };
+        let value = serde_json::to_value(options).unwrap();
+        assert_eq!(value["size"], "large");
+        assert_eq!(value["position"], "beginning");
+    }
+
+    // ── Language ─────────────────────────────────────────────────────────────
+
+    #[test]
+    fn language_serialization() {
+        assert_eq!(serde_json::to_value(Language::Ja).unwrap(), "ja");
+        assert_eq!(serde_json::to_value(Language::En).unwrap(), "en");
+    }
+
+    // ── UserSearchRequest ───────────────────────────────────────────────────
+
+    #[test]
+    fn user_search_request_default_lang_is_ja() {
+        let req = UserSearchRequest::new(SearchTerms::new("official"));
+        let value = serde_json::to_value(req).unwrap();
+        assert_eq!(value["words"], "official");
+        assert_eq!(value["lang"], "ja");
+        assert!(value.get("limit").is_none());
+    }
+
+    #[test]
+    fn user_search_request_with_limit() {
+        let req = UserSearchRequest::new(SearchTerms::new("test")).limit(25);
+        let value = serde_json::to_value(req).unwrap();
+        assert_eq!(value["limit"], 25);
+    }
+
+    // ── LiveSearchRequest ────────────────────────────────────────────────────
+
+    #[test]
+    fn live_search_tag() {
+        let req = LiveSearchRequest::new(LiveSearchKind::Tag(SearchTerms::new("music")));
+        let value = serde_json::to_value(req).unwrap();
+        assert_eq!(value["type"], "tag");
+        assert_eq!(value["context"], "music");
+    }
+
+    #[test]
+    fn live_search_word() {
+        let req = LiveSearchRequest::new(LiveSearchKind::Word(SearchTerms::new("gaming")));
+        let value = serde_json::to_value(req).unwrap();
+        assert_eq!(value["type"], "word");
+        assert_eq!(value["context"], "gaming");
+    }
+
+    #[test]
+    fn live_search_category() {
+        let req = LiveSearchRequest::new(LiveSearchKind::Category("_system_channel_5".into()));
+        let value = serde_json::to_value(req).unwrap();
+        assert_eq!(value["type"], "category");
+        assert_eq!(value["context"], "_system_channel_5");
+    }
+
+    #[test]
+    fn live_search_new() {
+        let req = LiveSearchRequest::new(LiveSearchKind::New);
+        let value = serde_json::to_value(req).unwrap();
+        assert_eq!(value["type"], "new");
+        assert!(value.get("context").is_none());
+    }
+
+    #[test]
+    fn live_search_recommend() {
+        let req = LiveSearchRequest::new(LiveSearchKind::Recommend);
+        let value = serde_json::to_value(req).unwrap();
+        assert_eq!(value["type"], "recommend");
+        assert!(value.get("context").is_none());
+    }
+
+    #[test]
+    fn live_search_default_lang_is_ja() {
+        let req = LiveSearchRequest::new(LiveSearchKind::New);
+        let value = serde_json::to_value(req).unwrap();
+        assert_eq!(value["lang"], "ja");
+    }
+
+    #[test]
+    fn live_search_with_limit() {
+        let req = LiveSearchRequest::new(LiveSearchKind::Recommend).limit(50);
+        let value = serde_json::to_value(req).unwrap();
+        assert_eq!(value["limit"], 50);
+    }
+
+    // ── SupporterSort ────────────────────────────────────────────────────────
+
+    #[test]
+    fn supporter_sort_serialization() {
+        assert_eq!(serde_json::to_value(SupporterSort::New).unwrap(), "new");
+        assert_eq!(
+            serde_json::to_value(SupporterSort::Ranking).unwrap(),
+            "ranking"
+        );
+    }
+
+    // ── SupporterListRequest ─────────────────────────────────────────────────
+
+    #[test]
+    fn supporter_list_request_default_omits_all_params() {
+        let value = serde_json::to_value(SupporterListRequest::default()).unwrap();
+        assert_eq!(value, serde_json::json!({}));
+    }
+
+    #[test]
+    fn supporter_list_request_with_all_params() {
+        let req = SupporterListRequest::default()
+            .offset(10)
+            .limit(20)
+            .sort(SupporterSort::Ranking);
+        let value = serde_json::to_value(req).unwrap();
+        assert_eq!(value["offset"], 10);
+        assert_eq!(value["limit"], 20);
+        assert_eq!(value["sort"], "ranking");
+    }
+
+    // ── GiftRequest ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn gift_request_default_omits_slice_id() {
+        let value = serde_json::to_value(GiftRequest::default()).unwrap();
+        assert_eq!(value, serde_json::json!({}));
+    }
+
+    #[test]
+    fn gift_request_with_slice_id() {
+        let req = GiftRequest::default().slice_id(42);
+        let value = serde_json::to_value(req).unwrap();
+        assert_eq!(value["slice_id"], 42);
+    }
+
+    // ── WebhookListRequest ───────────────────────────────────────────────────
+
+    #[test]
+    fn webhook_list_request_default_omits_all() {
+        let value = serde_json::to_value(WebhookListRequest::default()).unwrap();
+        assert_eq!(value, serde_json::json!({}));
+    }
+
+    #[test]
+    fn webhook_list_request_with_user_id() {
+        let req = WebhookListRequest::default().user_id(UserId::new("42"));
+        let value = serde_json::to_value(req).unwrap();
+        assert_eq!(value["user_id"], "42");
+        assert!(value.get("limit").is_none());
+        assert!(value.get("offset").is_none());
+    }
+
+    #[test]
+    fn webhook_list_request_with_pagination() {
+        let req = WebhookListRequest::default().limit(10).offset(5);
+        let value = serde_json::to_value(req).unwrap();
+        assert_eq!(value["limit"], 10);
+        assert_eq!(value["offset"], 5);
+    }
+
+    // ── CommentText / Subtitle / Hashtag ─────────────────────────────────────
+
+    #[test]
+    fn comment_text_serializes_transparently() {
+        assert_eq!(
+            serde_json::to_string(&CommentText::new("hello")).unwrap(),
+            r#""hello""#
+        );
+    }
+
+    #[test]
+    fn subtitle_serializes_transparently() {
+        assert_eq!(
+            serde_json::to_string(&Subtitle::new("初見さん大歓迎！")).unwrap(),
+            r#""初見さん大歓迎！""#
+        );
+    }
+
+    #[test]
+    fn hashtag_serializes_transparently() {
+        let serialized = serde_json::to_string(&Hashtag::new("#stream")).unwrap();
+        assert_eq!(serialized, "\"#stream\"");
+    }
+
+    // ── SupportBatch ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn support_batch_wire_values() {
+        let batch = SupportBatch::new([
+            UserRef::Id(UserId::new("42")),
+            UserRef::ScreenId(ScreenId::new("caster")),
+        ]);
+        // SupportBatch itself serializes via the internal Body struct in resources,
+        // but wire_values() is the key transformation.
+        let values = batch.wire_values();
+        assert_eq!(values, vec!["42", "caster"]);
+    }
+
+    // ── WebhookEvents ────────────────────────────────────────────────────────
+
+    #[test]
+    fn webhook_events_as_slice() {
+        let events = WebhookEvents::new([WebhookEvent::LiveStart, WebhookEvent::LiveEnd]);
+        assert_eq!(
+            events.as_slice(),
+            &[WebhookEvent::LiveStart, WebhookEvent::LiveEnd]
+        );
+    }
+}

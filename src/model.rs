@@ -620,8 +620,15 @@ impl<'de> Deserialize<'de> for TokenType {
 #[cfg(test)]
 mod tests {
     use std::time::{Duration, UNIX_EPOCH};
+    use url::Url;
 
-    use super::{TokenType, UnixTimestamp, WebhookEvent};
+    use super::{
+        Application, Category, CategoryList, Comment, CommentList, DeletedComment, Gift, GiftList,
+        HashtagUpdate, LiveSchedule, LiveSchedules, Movie, MovieInfo, MovieList, PostedComment,
+        SubCategory, SubtitleUpdate, SupporterList, SupporterUser, SupportingList,
+        SupportingStatus, TokenType, UnixTimestamp, User, UserInfo, UserSearchResults,
+        VerifiedCredentials, Webhook, WebhookEvent, WebhookList,
+    };
 
     #[test]
     fn timestamps_round_trip_before_and_after_epoch() {
@@ -644,4 +651,540 @@ mod tests {
         let token: TokenType = serde_json::from_str("\"DPoP\"").unwrap();
         assert_eq!(token, TokenType::Unknown("DPoP".into()));
     }
+
+    // ── WebhookEvent round-trip ──────────────────────────────────────────────
+
+    fn webhook_event_round_trip(event: WebhookEvent, expected_wire: &str) {
+        let serialized = serde_json::to_string(&event).unwrap();
+        assert_eq!(serialized, format!("\"{expected_wire}\""));
+        let deserialized: WebhookEvent = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(deserialized, event);
+    }
+
+    #[test]
+    fn webhook_event_live_start_round_trip() {
+        webhook_event_round_trip(WebhookEvent::LiveStart, "livestart");
+    }
+
+    #[test]
+    fn webhook_event_live_end_round_trip() {
+        webhook_event_round_trip(WebhookEvent::LiveEnd, "liveend");
+    }
+
+    #[test]
+    fn webhook_event_schedule_create_round_trip() {
+        webhook_event_round_trip(WebhookEvent::LiveScheduleCreate, "liveschedulecreate");
+    }
+
+    #[test]
+    fn webhook_event_schedule_update_round_trip() {
+        webhook_event_round_trip(WebhookEvent::LiveScheduleUpdate, "livescheduleupdate");
+    }
+
+    #[test]
+    fn webhook_event_schedule_delete_round_trip() {
+        webhook_event_round_trip(WebhookEvent::LiveScheduleDelete, "livescheduledelete");
+    }
+
+    #[test]
+    fn webhook_event_unknown_round_trip() {
+        webhook_event_round_trip(WebhookEvent::Unknown("custom".into()), "custom");
+    }
+
+    // ── TokenType round-trip ─────────────────────────────────────────────────
+
+    #[test]
+    fn token_type_bearer_case_insensitive() {
+        for wire in [r#""Bearer""#, r#""bearer""#, r#""BEARER""#] {
+            let token: TokenType = serde_json::from_str(wire).unwrap();
+            assert_eq!(token, TokenType::Bearer);
+        }
+    }
+
+    // ── User object ──────────────────────────────────────────────────────────
+
+    #[allow(deprecated)]
+    fn sample_user() -> User {
+        User {
+            id: crate::UserId::new("1"),
+            screen_id: crate::ScreenId::new("caster"),
+            name: "Caster".into(),
+            image: Url::parse("https://x.com/i.png").unwrap(),
+            profile: "Hi".into(),
+            level: 5,
+            last_movie_id: Some(crate::MovieId::new("10")),
+            is_live: true,
+            supporter_count: 0,
+            supporting_count: 0,
+            created: 0,
+        }
+    }
+
+    #[test]
+    fn user_round_trip() {
+        let user = sample_user();
+        let json = serde_json::to_value(&user).unwrap();
+        let deserialized: User = serde_json::from_value(json).unwrap();
+        assert_eq!(deserialized.id.as_str(), "1");
+        assert!(deserialized.is_live);
+    }
+
+    #[allow(deprecated)]
+    #[test]
+    fn user_accepts_missing_deprecated_fields() {
+        let json = r#"{
+            "id":"1","screen_id":"s","name":"N","image":"https://x.com/i.png",
+            "profile":"","level":1,"last_movie_id":null,"is_live":false
+        }"#;
+        // Without supporter_count, supporting_count, created — all default to 0
+        let user: User = serde_json::from_str(json).unwrap();
+        assert_eq!(user.supporter_count, 0);
+        assert_eq!(user.supporting_count, 0);
+        assert_eq!(user.created, 0);
+    }
+
+    // ── UserInfo ─────────────────────────────────────────────────────────────
+
+    #[test]
+    fn user_info_round_trip() {
+        let info = UserInfo {
+            user: sample_user(),
+            supporter_count: 10,
+            supporting_count: 24,
+        };
+        let json = serde_json::to_value(&info).unwrap();
+        let deserialized: UserInfo = serde_json::from_value(json).unwrap();
+        assert_eq!(deserialized.supporter_count, 10);
+        assert_eq!(deserialized.supporting_count, 24);
+    }
+
+    // ── Movie ────────────────────────────────────────────────────────────────
+
+    fn sample_movie() -> Movie {
+        Movie {
+            id: crate::MovieId::new("100"),
+            user_id: crate::UserId::new("1"),
+            title: "Live".into(),
+            subtitle: Some("Hello".into()),
+            last_owner_comment: None,
+            category: Some("music".into()),
+            link: Url::parse("https://x.com/m/100").unwrap(),
+            is_live: true,
+            is_recorded: false,
+            comment_count: 42,
+            large_thumbnail: Url::parse("https://x.com/l.jpg").unwrap(),
+            small_thumbnail: Url::parse("https://x.com/s.jpg").unwrap(),
+            country: "jp".into(),
+            duration: 3600,
+            created: UnixTimestamp(1000000000),
+            is_collabo: false,
+            is_protected: false,
+            max_view_count: 0,
+            current_view_count: 5,
+            total_view_count: 100,
+            hls_url: Some(Url::parse("https://x.com/stream.m3u8").unwrap()),
+        }
+    }
+
+    #[test]
+    fn movie_round_trip() {
+        let movie = sample_movie();
+        let json = serde_json::to_value(&movie).unwrap();
+        let deserialized: Movie = serde_json::from_value(json).unwrap();
+        assert_eq!(deserialized.id.as_str(), "100");
+        assert_eq!(deserialized.comment_count, 42);
+    }
+
+    #[test]
+    fn movie_with_null_subtitle_and_hls() {
+        let json = r#"{
+            "id":"1","user_id":"1","title":"T",
+            "subtitle":null,"last_owner_comment":null,"category":null,
+            "link":"https://x.com/m/1","is_live":false,"is_recorded":true,
+            "comment_count":0,
+            "large_thumbnail":"https://x.com/l.jpg","small_thumbnail":"https://x.com/s.jpg",
+            "country":"jp","duration":0,"created":1000000000,
+            "is_collabo":false,"is_protected":false,
+            "max_view_count":0,"current_view_count":0,"total_view_count":0,
+            "hls_url":null
+        }"#;
+        let movie: Movie = serde_json::from_str(json).unwrap();
+        assert!(movie.subtitle.is_none());
+        assert!(movie.hls_url.is_none());
+    }
+
+    // ── MovieInfo ────────────────────────────────────────────────────────────
+
+    #[test]
+    fn movie_info_round_trip() {
+        let info = MovieInfo {
+            movie: sample_movie(),
+            broadcaster: sample_user(),
+            tags: vec!["tag1".into(), "tag2".into()],
+        };
+        let json = serde_json::to_value(&info).unwrap();
+        let deserialized: MovieInfo = serde_json::from_value(json).unwrap();
+        assert_eq!(deserialized.tags, vec!["tag1", "tag2"]);
+    }
+
+    // ── MovieList ────────────────────────────────────────────────────────────
+
+    #[test]
+    fn movie_list_round_trip() {
+        let list = MovieList {
+            total_count: 1,
+            movies: vec![sample_movie()],
+        };
+        let json = serde_json::to_value(&list).unwrap();
+        let deserialized: MovieList = serde_json::from_value(json).unwrap();
+        assert_eq!(deserialized.total_count, 1);
+        assert_eq!(deserialized.movies.len(), 1);
+    }
+
+    // ── SubtitleUpdate ───────────────────────────────────────────────────────
+
+    #[test]
+    fn subtitle_update_round_trip() {
+        let update = SubtitleUpdate {
+            movie_id: crate::MovieId::new("1"),
+            subtitle: Some("hello".into()),
+        };
+        let json = serde_json::to_value(&update).unwrap();
+        let deserialized: SubtitleUpdate = serde_json::from_value(json).unwrap();
+        assert_eq!(deserialized.subtitle.as_deref(), Some("hello"));
+    }
+
+    #[test]
+    fn subtitle_update_null_round_trip() {
+        let update = SubtitleUpdate {
+            movie_id: crate::MovieId::new("1"),
+            subtitle: None,
+        };
+        let json = serde_json::to_value(&update).unwrap();
+        assert_eq!(json["subtitle"], serde_json::Value::Null);
+    }
+
+    // ── HashtagUpdate ────────────────────────────────────────────────────────
+
+    #[test]
+    fn hashtag_update_round_trip() {
+        let update = HashtagUpdate {
+            movie_id: crate::MovieId::new("1"),
+            hashtag: Some("#tag".into()),
+        };
+        let json = serde_json::to_value(&update).unwrap();
+        let deserialized: HashtagUpdate = serde_json::from_value(json).unwrap();
+        assert_eq!(deserialized.hashtag.as_deref(), Some("#tag"));
+    }
+
+    // ── Comment ──────────────────────────────────────────────────────────────
+
+    #[test]
+    fn comment_round_trip() {
+        let comment = Comment {
+            id: crate::CommentId::new("500"),
+            message: "Moi".into(),
+            from_user: sample_user(),
+            created: UnixTimestamp(1500000000),
+        };
+        let json = serde_json::to_value(&comment).unwrap();
+        let deserialized: Comment = serde_json::from_value(json).unwrap();
+        assert_eq!(deserialized.message, "Moi");
+    }
+
+    // ── CommentList ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn comment_list_round_trip() {
+        let list = CommentList {
+            movie_id: crate::MovieId::new("100"),
+            all_count: 5,
+            comments: vec![Comment {
+                id: crate::CommentId::new("1"),
+                message: "hi".into(),
+                from_user: sample_user(),
+                created: UnixTimestamp(1500000000),
+            }],
+        };
+        let json = serde_json::to_value(&list).unwrap();
+        let deserialized: CommentList = serde_json::from_value(json).unwrap();
+        assert_eq!(deserialized.all_count, 5);
+    }
+
+    // ── PostedComment ────────────────────────────────────────────────────────
+
+    #[test]
+    fn posted_comment_round_trip() {
+        let posted = PostedComment {
+            movie_id: crate::MovieId::new("100"),
+            all_count: 6,
+            comment: Comment {
+                id: crate::CommentId::new("2"),
+                message: "hello".into(),
+                from_user: sample_user(),
+                created: UnixTimestamp(1500000001),
+            },
+        };
+        let json = serde_json::to_value(&posted).unwrap();
+        let deserialized: PostedComment = serde_json::from_value(json).unwrap();
+        assert_eq!(deserialized.all_count, 6);
+    }
+
+    // ── DeletedComment ───────────────────────────────────────────────────────
+
+    #[test]
+    fn deleted_comment_round_trip() {
+        let deleted = DeletedComment {
+            comment_id: crate::CommentId::new("99"),
+        };
+        let json = serde_json::to_value(&deleted).unwrap();
+        let deserialized: DeletedComment = serde_json::from_value(json).unwrap();
+        assert_eq!(deserialized.comment_id.as_str(), "99");
+    }
+
+    // ── Gift ─────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn gift_round_trip() {
+        let gift = Gift {
+            id: "100".into(),
+            message: "Moi".into(),
+            item_image: Url::parse("https://x.com/item.png").unwrap(),
+            item_sub_image: None,
+            item_id: "tea".into(),
+            item_mp: "10".into(),
+            item_name: "Tea".into(),
+            user_image: Url::parse("https://x.com/user.png").unwrap(),
+            user_screen_id: crate::ScreenId::new("caster"),
+            user_screen_name: "caster".into(),
+            user_name: "Caster".into(),
+        };
+        let json = serde_json::to_value(&gift).unwrap();
+        let deserialized: Gift = serde_json::from_value(json).unwrap();
+        assert_eq!(deserialized.id, "100");
+    }
+
+    // ── GiftList ─────────────────────────────────────────────────────────────
+
+    #[test]
+    fn gift_list_round_trip() {
+        let list = GiftList {
+            slice_id: 42,
+            gifts: vec![],
+        };
+        let json = serde_json::to_value(&list).unwrap();
+        let deserialized: GiftList = serde_json::from_value(json).unwrap();
+        assert_eq!(deserialized.slice_id, 42);
+        assert!(deserialized.gifts.is_empty());
+    }
+
+    // ── SupportingStatus ─────────────────────────────────────────────────────
+
+    #[test]
+    fn supporting_status_round_trip() {
+        let status = SupportingStatus {
+            is_supporting: true,
+            supported: Some(UnixTimestamp(1600000000)),
+            target_user: sample_user(),
+        };
+        let json = serde_json::to_value(&status).unwrap();
+        let deserialized: SupportingStatus = serde_json::from_value(json).unwrap();
+        assert!(deserialized.is_supporting);
+        assert_eq!(deserialized.supported.unwrap().seconds(), 1600000000);
+    }
+
+    #[test]
+    fn supporting_status_not_supporting_round_trip() {
+        let status = SupportingStatus {
+            is_supporting: false,
+            supported: None,
+            target_user: sample_user(),
+        };
+        let json = serde_json::to_value(&status).unwrap();
+        // `supported` should be omitted when None (skip_serializing_if not used,
+        // but #[serde(default)] handles deserialization)
+        let deserialized: SupportingStatus = serde_json::from_value(json).unwrap();
+        assert!(!deserialized.is_supporting);
+        assert!(deserialized.supported.is_none());
+    }
+
+    // ── SupporterUser / SupportingList / SupporterList ───────────────────────
+
+    #[allow(deprecated)]
+    fn sample_supporter_user() -> SupporterUser {
+        SupporterUser {
+            id: crate::UserId::new("1"),
+            screen_id: crate::ScreenId::new("supporter"),
+            name: "Supporter".into(),
+            image: Url::parse("https://x.com/i.png").unwrap(),
+            profile: "".into(),
+            level: 10,
+            last_movie_id: Some(crate::MovieId::new("5")),
+            is_live: false,
+            supported: UnixTimestamp(1700000000),
+            supporter_count: 0,
+            supporting_count: 0,
+            point: 100,
+            total_point: 500,
+            created: 0,
+        }
+    }
+
+    #[test]
+    fn supporter_user_round_trip() {
+        let user = sample_supporter_user();
+        let json = serde_json::to_value(&user).unwrap();
+        let deserialized: SupporterUser = serde_json::from_value(json).unwrap();
+        assert_eq!(deserialized.point, 100);
+        assert_eq!(deserialized.total_point, 500);
+    }
+
+    #[test]
+    fn supporting_list_round_trip() {
+        let list = SupportingList {
+            total: 1,
+            supporting: vec![sample_supporter_user()],
+        };
+        let json = serde_json::to_value(&list).unwrap();
+        let deserialized: SupportingList = serde_json::from_value(json).unwrap();
+        assert_eq!(deserialized.total, 1);
+    }
+
+    #[test]
+    fn supporter_list_round_trip() {
+        let list = SupporterList {
+            total: 2,
+            supporters: vec![sample_supporter_user()],
+        };
+        let json = serde_json::to_value(&list).unwrap();
+        let deserialized: SupporterList = serde_json::from_value(json).unwrap();
+        assert_eq!(deserialized.total, 2);
+    }
+
+    // ── Category │ SubCategory │ CategoryList ────────────────────────────────
+
+    #[test]
+    fn category_list_round_trip() {
+        let list = CategoryList {
+            categories: vec![Category {
+                id: "_channel".into(),
+                name: "Channel".into(),
+                sub_categories: vec![SubCategory {
+                    id: "_sub_1".into(),
+                    name: "Sub".into(),
+                    count: 10,
+                }],
+            }],
+        };
+        let json = serde_json::to_value(&list).unwrap();
+        let deserialized: CategoryList = serde_json::from_value(json).unwrap();
+        assert_eq!(deserialized.categories[0].sub_categories[0].count, 10);
+    }
+
+    // ── UserSearchResults ────────────────────────────────────────────────────
+
+    #[test]
+    fn user_search_results_round_trip() {
+        let results = UserSearchResults {
+            users: vec![sample_user()],
+        };
+        let json = serde_json::to_value(&results).unwrap();
+        let deserialized: UserSearchResults = serde_json::from_value(json).unwrap();
+        assert_eq!(deserialized.users.len(), 1);
+    }
+
+    // ── Application ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn application_round_trip() {
+        let app = Application {
+            client_id: "client123".into(),
+            name: "MyApp".into(),
+            owner_user_id: crate::UserId::new("42"),
+        };
+        let json = serde_json::to_value(&app).unwrap();
+        let deserialized: Application = serde_json::from_value(json).unwrap();
+        assert_eq!(deserialized.client_id, "client123");
+    }
+
+    // ── VerifiedCredentials ──────────────────────────────────────────────────
+
+    #[test]
+    fn verified_credentials_round_trip() {
+        let creds = VerifiedCredentials {
+            app: Application {
+                client_id: "a1".into(),
+                name: "App".into(),
+                owner_user_id: crate::UserId::new("99"),
+            },
+            user: sample_user(),
+            supporter_count: 5,
+            supporting_count: 10,
+        };
+        let json = serde_json::to_value(&creds).unwrap();
+        let deserialized: VerifiedCredentials = serde_json::from_value(json).unwrap();
+        assert_eq!(deserialized.app.client_id, "a1");
+    }
+
+    // ── LiveSchedule ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn live_schedule_round_trip() {
+        let schedule = LiveSchedule {
+            id: crate::LiveScheduleId::new("ts-1"),
+            user_id: crate::UserId::new("1"),
+            user_screen_id: crate::ScreenId::new("caster"),
+            start_at: UnixTimestamp(1767193200),
+            title: "配信予定".into(),
+            thumbnail: Some(Url::parse("https://x.com/thumb.jpg").unwrap()),
+        };
+        let json = serde_json::to_value(&schedule).unwrap();
+        let deserialized: LiveSchedule = serde_json::from_value(json).unwrap();
+        assert_eq!(deserialized.title, "配信予定");
+    }
+
+    // ── LiveSchedules ────────────────────────────────────────────────────────
+
+    #[test]
+    fn live_schedules_round_trip() {
+        let scheds = LiveSchedules {
+            live_schedules: vec![],
+        };
+        let json = serde_json::to_value(&scheds).unwrap();
+        let deserialized: LiveSchedules = serde_json::from_value(json).unwrap();
+        assert!(deserialized.live_schedules.is_empty());
+    }
+
+    // ── Webhook / WebhookList ────────────────────────────────────────────────
+
+    #[test]
+    fn webhook_round_trip() {
+        let hook = Webhook {
+            user_id: crate::UserId::new("1"),
+            event: WebhookEvent::LiveStart,
+        };
+        let json = serde_json::to_value(&hook).unwrap();
+        let deserialized: Webhook = serde_json::from_value(json).unwrap();
+        assert_eq!(deserialized.event, WebhookEvent::LiveStart);
+    }
+
+    #[test]
+    fn webhook_list_round_trip() {
+        let list = WebhookList {
+            all_count: 1,
+            webhooks: vec![Webhook {
+                user_id: crate::UserId::new("1"),
+                event: WebhookEvent::LiveEnd,
+            }],
+        };
+        let json = serde_json::to_value(&list).unwrap();
+        let deserialized: WebhookList = serde_json::from_value(json).unwrap();
+        assert_eq!(deserialized.all_count, 1);
+    }
+
+    // ── RtmpCredentials ──────────────────────────────────────────────────────
+    // Note: only Deserialize, not Serialize, so no round-trip test.
+
+    // ── AccessToken ──────────────────────────────────────────────────────────
+    // Note: only Deserialize, so deserialization is tested in fixtures.
 }
