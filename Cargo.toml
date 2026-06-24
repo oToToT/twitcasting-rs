@@ -8,6 +8,7 @@ license = "MIT"
 authors = ["Tommy Chiang <ty1208chiang@gmail.com>"]
 repository = "https://github.com/oToToT/twitcasting-rs"
 documentation = "https://docs.rs/twitcasting"
+homepage = "https://github.com/oToToT/twitcasting-rs"
 keywords = ["twitcasting", "api", "async"]
 categories = ["api-bindings"]
 
