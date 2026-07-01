@@ -175,6 +175,12 @@ pub struct Movie {
     pub is_collabo: bool,
     /// Whether password protected.
     pub is_protected: bool,
+    /// Whether this is a membership broadcast.
+    #[serde(default)]
+    pub is_membership: bool,
+    /// Whether this is a premier broadcast.
+    #[serde(default)]
+    pub is_premier: bool,
     /// Maximum concurrent viewers.
     pub max_view_count: u64,
     /// Current concurrent viewers.
@@ -779,6 +785,8 @@ mod tests {
             created: UnixTimestamp(1000000000),
             is_collabo: false,
             is_protected: false,
+            is_membership: false,
+            is_premier: false,
             max_view_count: 0,
             current_view_count: 5,
             total_view_count: 100,
@@ -805,12 +813,33 @@ mod tests {
             "large_thumbnail":"https://x.com/l.jpg","small_thumbnail":"https://x.com/s.jpg",
             "country":"jp","duration":0,"created":1000000000,
             "is_collabo":false,"is_protected":false,
+            "is_membership":true,"is_premier":false,
             "max_view_count":0,"current_view_count":0,"total_view_count":0,
             "hls_url":null
         }"#;
         let movie: Movie = serde_json::from_str(json).unwrap();
         assert!(movie.subtitle.is_none());
         assert!(movie.hls_url.is_none());
+        assert!(movie.is_membership);
+        assert!(!movie.is_premier);
+    }
+
+    #[test]
+    fn movie_accepts_missing_membership_and_premier_fields() {
+        let json = r#"{
+            "id":"1","user_id":"1","title":"T",
+            "subtitle":null,"last_owner_comment":null,"category":null,
+            "link":"https://x.com/m/1","is_live":false,"is_recorded":true,
+            "comment_count":0,
+            "large_thumbnail":"https://x.com/l.jpg","small_thumbnail":"https://x.com/s.jpg",
+            "country":"jp","duration":0,"created":1000000000,
+            "is_collabo":false,"is_protected":false,
+            "max_view_count":0,"current_view_count":0,"total_view_count":0,
+            "hls_url":null
+        }"#;
+        let movie: Movie = serde_json::from_str(json).unwrap();
+        assert!(!movie.is_membership);
+        assert!(!movie.is_premier);
     }
 
     // ── MovieInfo ────────────────────────────────────────────────────────────
