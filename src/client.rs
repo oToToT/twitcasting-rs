@@ -8,6 +8,8 @@ use reqwest::{
 use serde::de::DeserializeOwned;
 use url::Url;
 
+#[cfg(feature = "webhooks")]
+use crate::resources::Webhooks;
 use crate::{
     AppAuth, BearerAuth, Error, Unauthenticated,
     auth::Authentication,
@@ -15,8 +17,6 @@ use crate::{
     model::UnixTimestamp,
     resources::{Broadcasting, Categories, Comments, Gifts, Movies, Search, Supporters, Users},
 };
-#[cfg(feature = "webhooks")]
-use crate::resources::Webhooks;
 
 const DEFAULT_BASE_URL: &str = "https://apiv2.twitcasting.tv/";
 

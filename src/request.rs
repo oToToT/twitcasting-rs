@@ -1,8 +1,8 @@
 use serde::Serialize;
 
-use crate::{CommentId, MovieId, UserRef};
 #[cfg(feature = "webhooks")]
 use crate::WebhookEvent;
+use crate::{CommentId, MovieId, UserRef};
 
 /// Pagination for movie history.
 #[derive(Clone, Debug, Default, Serialize)]

@@ -2,19 +2,18 @@ use reqwest::Method;
 use serde::Serialize;
 
 use crate::auth::Authentication;
-use crate::{
-    ApiResponse, BearerAuth, CategoryList, CommentList, CommentListRequest, CommentText,
-    DeletedComment, Error, GiftList, GiftRequest, Hashtag, HashtagUpdate, Language,
-    LiveSchedules, LiveSearchRequest, LiveSearchResults, MovieId, MovieInfo, MovieList,
-    MovieListRequest, PostedComment, RtmpCredentials, Subtitle, SubtitleUpdate, SupportBatch,
-    SupportResult, SupporterList, SupporterListRequest, SupportingList, SupportingStatus,
-    Thumbnail, ThumbnailOptions, UnsupportResult, UpcomingSchedulesRequest, UserInfo, UserRef,
-    UserSearchRequest, UserSearchResults, VerifiedCredentials,
-};
 #[cfg(feature = "webhooks")]
 use crate::{
-    AddedWebhooks, AppAuth, DeletedWebhooks, UserId, WebhookEvents, WebhookList,
-    WebhookListRequest,
+    AddedWebhooks, AppAuth, DeletedWebhooks, UserId, WebhookEvents, WebhookList, WebhookListRequest,
+};
+use crate::{
+    ApiResponse, BearerAuth, CategoryList, CommentList, CommentListRequest, CommentText,
+    DeletedComment, Error, GiftList, GiftRequest, Hashtag, HashtagUpdate, Language, LiveSchedules,
+    LiveSearchRequest, LiveSearchResults, MovieId, MovieInfo, MovieList, MovieListRequest,
+    PostedComment, RtmpCredentials, Subtitle, SubtitleUpdate, SupportBatch, SupportResult,
+    SupporterList, SupporterListRequest, SupportingList, SupportingStatus, Thumbnail,
+    ThumbnailOptions, UnsupportResult, UpcomingSchedulesRequest, UserInfo, UserRef,
+    UserSearchRequest, UserSearchResults, VerifiedCredentials,
 };
 
 macro_rules! resource {

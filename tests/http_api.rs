@@ -6,6 +6,8 @@ use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpListener,
 };
+#[cfg(feature = "oauth")]
+use twitcasting::OAuthClient;
 use twitcasting::{
     ApiResponse, AppAuth, BearerAuth, Client, ClientBuilder, CommentId, CommentListRequest,
     CommentText, Error, GiftRequest, Hashtag, Language, LiveSearchKind, LiveSearchRequest, MovieId,
@@ -13,8 +15,6 @@ use twitcasting::{
     SupporterSort, ThumbnailOptions, Unauthenticated, UpcomingSchedulesRequest, UserId, UserRef,
     UserSearchRequest,
 };
-#[cfg(feature = "oauth")]
-use twitcasting::OAuthClient;
 #[cfg(feature = "webhooks")]
 use twitcasting::{WebhookEvent, WebhookEvents, WebhookListRequest};
 use url::Url;

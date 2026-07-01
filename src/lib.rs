@@ -22,10 +22,8 @@ pub use model::*;
 #[cfg(feature = "oauth")]
 pub use oauth::{OAuthClient, OAuthClientBuilder};
 pub use request::*;
-pub use resources::{
-    Broadcasting, Categories, Comments, Gifts, Movies, Search, Supporters, Users,
-};
 #[cfg(feature = "webhooks")]
 pub use resources::Webhooks;
+pub use resources::{Broadcasting, Categories, Comments, Gifts, Movies, Search, Supporters, Users};
 #[cfg(feature = "webhooks")]
 pub use webhook::{WebhookPayload, decode_webhook};

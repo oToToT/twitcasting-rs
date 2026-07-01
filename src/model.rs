@@ -3,9 +3,9 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use serde::{Deserialize, Deserializer, Serialize};
 #[cfg(feature = "webhooks")]
 use serde::Serializer;
+use serde::{Deserialize, Deserializer, Serialize};
 use url::Url;
 
 use crate::{CommentId, LiveScheduleId, MovieId, ScreenId, SecretString, UserId};
@@ -641,14 +641,14 @@ mod tests {
     use std::time::{Duration, UNIX_EPOCH};
     use url::Url;
 
+    #[cfg(feature = "oauth")]
+    use super::TokenType;
     use super::{
         Application, Category, CategoryList, Comment, CommentList, DeletedComment, Gift, GiftList,
         HashtagUpdate, LiveSchedule, LiveSchedules, Movie, MovieInfo, MovieList, PostedComment,
         SubCategory, SubtitleUpdate, SupporterList, SupporterUser, SupportingList,
         SupportingStatus, UnixTimestamp, User, UserInfo, UserSearchResults, VerifiedCredentials,
     };
-    #[cfg(feature = "oauth")]
-    use super::TokenType;
     #[cfg(feature = "webhooks")]
     use super::{Webhook, WebhookEvent, WebhookList};
 
