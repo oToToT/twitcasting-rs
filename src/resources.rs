@@ -60,7 +60,9 @@ impl<A: Authentication> Users<'_, A> {
             .query(options);
         self.client.send_json(request).await
     }
+}
 
+impl<A> Users<'_, A> {
     /// Downloads the live thumbnail without requiring authentication.
     pub async fn live_thumbnail(
         &self,

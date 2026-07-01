@@ -44,6 +44,22 @@ pub trait Authentication: private::Sealed + Clone + Send + Sync + 'static {
     fn apply(&self, request: RequestBuilder) -> RequestBuilder;
 }
 
+/// Marker for a client without credentials.
+///
+/// This client type is only useful for endpoints that explicitly do not require
+/// authentication, such as live thumbnails.
+///
+/// ```compile_fail
+/// use twitcasting::{Client, ScreenId, UserRef};
+///
+/// let client = Client::unauthenticated()?;
+/// let user = UserRef::from(ScreenId::new("twitcasting_jp"));
+/// client.users().get(&user);
+/// # Ok::<(), twitcasting::Error>(())
+/// ```
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Unauthenticated;
+
 /// User-level OAuth bearer authentication.
 #[derive(Clone, Debug)]
 pub struct BearerAuth {

@@ -99,6 +99,24 @@ fn application_client() -> Result<Client<twitcasting::AppAuth>, twitcasting::Err
 OAuth authorization URL generation and authorization-code exchange are
 provided separately by `OAuthClient`.
 
+Endpoints that explicitly do not require credentials, such as live thumbnail
+downloads, can use an unauthenticated client:
+
+```rust
+use twitcasting::{Client, ScreenId, ThumbnailOptions, UserRef};
+
+async fn thumbnail() -> Result<(), twitcasting::Error> {
+    let client = Client::unauthenticated()?;
+    let user = UserRef::from(ScreenId::new("twitcasting_jp"));
+    let image = client
+        .users()
+        .live_thumbnail(&user, ThumbnailOptions::default())
+        .await?;
+    println!("{}", image.value.media_type);
+    Ok(())
+}
+```
+
 ## API coverage
 
 | Resource | Operations |

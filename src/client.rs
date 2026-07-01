@@ -9,7 +9,7 @@ use serde::de::DeserializeOwned;
 use url::Url;
 
 use crate::{
-    AppAuth, BearerAuth, Error,
+    AppAuth, BearerAuth, Error, Unauthenticated,
     auth::Authentication,
     error::{ApiError, ErrorEnvelope},
     model::UnixTimestamp,
@@ -59,7 +59,7 @@ pub struct ClientBuilder<A> {
     http: Option<reqwest::Client>,
 }
 
-impl<A: Authentication> ClientBuilder<A> {
+impl<A> ClientBuilder<A> {
     /// Creates a builder using the production API base URL.
     pub fn new(auth: A) -> Result<Self, Error> {
         Ok(Self {
@@ -138,64 +138,18 @@ impl Client<AppAuth> {
     }
 }
 
-impl<A: Authentication> Client<A> {
-    /// Starts a custom client builder.
-    pub fn builder(auth: A) -> Result<ClientBuilder<A>, Error> {
-        ClientBuilder::new(auth)
+impl Client<Unauthenticated> {
+    /// Creates a client for endpoints that do not require credentials.
+    pub fn unauthenticated() -> Result<Self, Error> {
+        ClientBuilder::new(Unauthenticated)?.build()
     }
+}
 
+impl<A> Client<A> {
     /// User operations.
     #[must_use]
     pub fn users(&self) -> Users<'_, A> {
         Users::new(self)
-    }
-
-    /// Movie operations.
-    #[must_use]
-    pub fn movies(&self) -> Movies<'_, A> {
-        Movies::new(self)
-    }
-
-    /// Comment operations.
-    #[must_use]
-    pub fn comments(&self) -> Comments<'_, A> {
-        Comments::new(self)
-    }
-
-    /// Gift operations. Methods are available only with bearer authentication.
-    #[must_use]
-    pub fn gifts(&self) -> Gifts<'_, A> {
-        Gifts::new(self)
-    }
-
-    /// Support relationship operations.
-    #[must_use]
-    pub fn supporters(&self) -> Supporters<'_, A> {
-        Supporters::new(self)
-    }
-
-    /// Category operations.
-    #[must_use]
-    pub fn categories(&self) -> Categories<'_, A> {
-        Categories::new(self)
-    }
-
-    /// Search operations.
-    #[must_use]
-    pub fn search(&self) -> Search<'_, A> {
-        Search::new(self)
-    }
-
-    /// Application webhook operations.
-    #[must_use]
-    pub fn webhooks(&self) -> Webhooks<'_, A> {
-        Webhooks::new(self)
-    }
-
-    /// Broadcasting operations.
-    #[must_use]
-    pub fn broadcasting(&self) -> Broadcasting<'_, A> {
-        Broadcasting::new(self)
     }
 
     pub(crate) fn endpoint(&self, segments: &[&str]) -> Url {
@@ -210,65 +164,12 @@ impl<A: Authentication> Client<A> {
         url
     }
 
-    pub(crate) fn request(&self, method: Method, segments: &[&str]) -> RequestBuilder {
-        let request = self
-            .inner
-            .http
-            .request(method, self.endpoint(segments))
-            .header(ACCEPT, "application/json")
-            .header("X-Api-Version", "2.0");
-        self.inner.auth.apply(request)
-    }
-
     pub(crate) fn unauthenticated_request(
         &self,
         method: Method,
         segments: &[&str],
     ) -> RequestBuilder {
         self.inner.http.request(method, self.endpoint(segments))
-    }
-
-    pub(crate) async fn send_json<T: DeserializeOwned>(
-        &self,
-        request: RequestBuilder,
-    ) -> Result<ApiResponse<T>, Error> {
-        let response = request.send().await?;
-        let status = response.status();
-        let headers = response.headers().clone();
-        let rate_limit = parse_rate_limit(&headers);
-        let content_type = media_type(&headers);
-        let body = response.bytes().await?;
-
-        if !status.is_success() {
-            let envelope =
-                serde_json::from_slice::<ErrorEnvelope>(&body).map_err(|source| Error::Decode {
-                    source,
-                    body: truncate(&body),
-                })?;
-            return Err(ApiError {
-                status,
-                code: envelope.error.code,
-                message: envelope.error.message,
-                details: envelope.error.details,
-                rate_limit,
-            }
-            .into());
-        }
-
-        if !content_type
-            .as_deref()
-            .is_some_and(|value| value == "application/json" || value.ends_with("+json"))
-        {
-            return Err(Error::UnexpectedContentType {
-                actual: content_type,
-                expected: "application/json",
-            });
-        }
-        let value = serde_json::from_slice(&body).map_err(|source| Error::Decode {
-            source,
-            body: truncate(&body),
-        })?;
-        Ok(ApiResponse { value, rate_limit })
     }
 
     pub(crate) async fn send_thumbnail(
@@ -324,6 +225,114 @@ impl<A: Authentication> Client<A> {
     }
 }
 
+impl<A: Authentication> Client<A> {
+    /// Starts a custom client builder.
+    pub fn builder(auth: A) -> Result<ClientBuilder<A>, Error> {
+        ClientBuilder::new(auth)
+    }
+
+    /// Movie operations.
+    #[must_use]
+    pub fn movies(&self) -> Movies<'_, A> {
+        Movies::new(self)
+    }
+
+    /// Comment operations.
+    #[must_use]
+    pub fn comments(&self) -> Comments<'_, A> {
+        Comments::new(self)
+    }
+
+    /// Gift operations. Methods are available only with bearer authentication.
+    #[must_use]
+    pub fn gifts(&self) -> Gifts<'_, A> {
+        Gifts::new(self)
+    }
+
+    /// Support relationship operations.
+    #[must_use]
+    pub fn supporters(&self) -> Supporters<'_, A> {
+        Supporters::new(self)
+    }
+
+    /// Category operations.
+    #[must_use]
+    pub fn categories(&self) -> Categories<'_, A> {
+        Categories::new(self)
+    }
+
+    /// Search operations.
+    #[must_use]
+    pub fn search(&self) -> Search<'_, A> {
+        Search::new(self)
+    }
+
+    /// Application webhook operations.
+    #[must_use]
+    pub fn webhooks(&self) -> Webhooks<'_, A> {
+        Webhooks::new(self)
+    }
+
+    /// Broadcasting operations.
+    #[must_use]
+    pub fn broadcasting(&self) -> Broadcasting<'_, A> {
+        Broadcasting::new(self)
+    }
+
+    pub(crate) fn request(&self, method: Method, segments: &[&str]) -> RequestBuilder {
+        let request = self
+            .inner
+            .http
+            .request(method, self.endpoint(segments))
+            .header(ACCEPT, "application/json")
+            .header("X-Api-Version", "2.0");
+        self.inner.auth.apply(request)
+    }
+
+    pub(crate) async fn send_json<T: DeserializeOwned>(
+        &self,
+        request: RequestBuilder,
+    ) -> Result<ApiResponse<T>, Error> {
+        let response = request.send().await?;
+        let status = response.status();
+        let headers = response.headers().clone();
+        let rate_limit = parse_rate_limit(&headers);
+        let content_type = media_type(&headers);
+        let body = response.bytes().await?;
+
+        if !status.is_success() {
+            let envelope =
+                serde_json::from_slice::<ErrorEnvelope>(&body).map_err(|source| Error::Decode {
+                    source,
+                    body: truncate(&body),
+                })?;
+            return Err(ApiError {
+                status,
+                code: envelope.error.code,
+                message: envelope.error.message,
+                details: envelope.error.details,
+                rate_limit,
+            }
+            .into());
+        }
+
+        if !content_type
+            .as_deref()
+            .is_some_and(|value| value == "application/json" || value.ends_with("+json"))
+        {
+            return Err(Error::UnexpectedContentType {
+                actual: content_type,
+                expected: "application/json",
+            });
+        }
+        let value = serde_json::from_slice(&body).map_err(|source| Error::Decode {
+            source,
+            body: truncate(&body),
+        })?;
+        Ok(ApiResponse { value, rate_limit })
+    }
+}
+
 fn media_type(headers: &HeaderMap) -> Option<String> {
     headers
         .get(CONTENT_TYPE)
@@ -361,7 +370,7 @@ fn truncate(bytes: &[u8]) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::{Client, ClientBuilder};
-    use crate::{BearerAuth, ScreenId};
+    use crate::{BearerAuth, ScreenId, Unauthenticated};
     use url::Url;
 
     #[test]
@@ -381,5 +390,6 @@ mod tests {
     #[test]
     fn constructors_have_expected_types() {
         let _: Client<BearerAuth> = Client::bearer("token").unwrap();
+        let _: Client<Unauthenticated> = Client::unauthenticated().unwrap();
     }
 }

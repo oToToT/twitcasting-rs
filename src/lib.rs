@@ -12,7 +12,7 @@ mod request;
 mod resources;
 mod webhook;
 
-pub use auth::{AppAuth, Authentication, BearerAuth, SecretString};
+pub use auth::{AppAuth, Authentication, BearerAuth, SecretString, Unauthenticated};
 pub use client::{ApiResponse, Client, ClientBuilder, RateLimit, Thumbnail};
 pub use error::{ApiError, Error, ValidationDetails};
 pub use id::{CommentId, LiveScheduleId, MovieId, ScreenId, UserId, UserRef};

@@ -10,8 +10,9 @@ use twitcasting::{
     ApiResponse, AppAuth, BearerAuth, Client, ClientBuilder, CommentId, CommentListRequest,
     CommentText, Error, GiftRequest, Hashtag, Language, LiveSearchKind, LiveSearchRequest, MovieId,
     MovieListRequest, OAuthClient, ScreenId, SearchTerms, Subtitle, SupportBatch,
-    SupporterListRequest, SupporterSort, ThumbnailOptions, UpcomingSchedulesRequest, UserId,
-    UserRef, UserSearchRequest, WebhookEvent, WebhookEvents, WebhookListRequest,
+    SupporterListRequest, SupporterSort, ThumbnailOptions, Unauthenticated,
+    UpcomingSchedulesRequest, UserId, UserRef, UserSearchRequest, WebhookEvent, WebhookEvents,
+    WebhookListRequest,
 };
 use url::Url;
 
@@ -114,6 +115,11 @@ async fn covers_every_endpoint_family_and_auth_shape() {
         .base_url(server.base_url.clone())
         .build()
         .unwrap();
+    let unauthenticated = ClientBuilder::new(Unauthenticated)
+        .unwrap()
+        .base_url(server.base_url.clone())
+        .build()
+        .unwrap();
 
     let user = UserRef::from(ScreenId::new("caster/name"));
     let target = UserRef::from(UserId::new("42"));
@@ -133,6 +139,12 @@ async fn covers_every_endpoint_family_and_auth_shape() {
         .await
         .unwrap();
     assert_eq!(&thumbnail.value.bytes[..], b"JPEG");
+    let unauthenticated_thumbnail = unauthenticated
+        .users()
+        .live_thumbnail(&user, ThumbnailOptions::default())
+        .await
+        .unwrap();
+    assert_eq!(&unauthenticated_thumbnail.value.bytes[..], b"JPEG");
     assert_api_error(bearer.users().verify_credentials().await);
 
     assert_api_error(bearer.movies().get(&movie).await);
