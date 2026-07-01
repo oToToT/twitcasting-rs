@@ -3,14 +3,18 @@ use serde::Serialize;
 
 use crate::auth::Authentication;
 use crate::{
-    AddedWebhooks, ApiResponse, AppAuth, BearerAuth, CategoryList, CommentList, CommentListRequest,
-    CommentText, DeletedComment, DeletedWebhooks, Error, GiftList, GiftRequest, Hashtag,
-    HashtagUpdate, Language, LiveSchedules, LiveSearchRequest, LiveSearchResults, MovieId,
-    MovieInfo, MovieList, MovieListRequest, PostedComment, RtmpCredentials, Subtitle,
-    SubtitleUpdate, SupportBatch, SupportResult, SupporterList, SupporterListRequest,
-    SupportingList, SupportingStatus, Thumbnail, ThumbnailOptions, UnsupportResult,
-    UpcomingSchedulesRequest, UserId, UserInfo, UserRef, UserSearchRequest, UserSearchResults,
-    VerifiedCredentials, WebhookEvents, WebhookList, WebhookListRequest,
+    ApiResponse, BearerAuth, CategoryList, CommentList, CommentListRequest, CommentText,
+    DeletedComment, Error, GiftList, GiftRequest, Hashtag, HashtagUpdate, Language,
+    LiveSchedules, LiveSearchRequest, LiveSearchResults, MovieId, MovieInfo, MovieList,
+    MovieListRequest, PostedComment, RtmpCredentials, Subtitle, SubtitleUpdate, SupportBatch,
+    SupportResult, SupporterList, SupporterListRequest, SupportingList, SupportingStatus,
+    Thumbnail, ThumbnailOptions, UnsupportResult, UpcomingSchedulesRequest, UserInfo, UserRef,
+    UserSearchRequest, UserSearchResults, VerifiedCredentials,
+};
+#[cfg(feature = "webhooks")]
+use crate::{
+    AddedWebhooks, AppAuth, DeletedWebhooks, UserId, WebhookEvents, WebhookList,
+    WebhookListRequest,
 };
 
 macro_rules! resource {
@@ -35,6 +39,7 @@ resource!(Gifts);
 resource!(Supporters);
 resource!(Categories);
 resource!(Search);
+#[cfg(feature = "webhooks")]
 resource!(Webhooks);
 resource!(Broadcasting);
 
@@ -343,6 +348,7 @@ impl<A: Authentication> Search<'_, A> {
     }
 }
 
+#[cfg(feature = "webhooks")]
 impl Webhooks<'_, AppAuth> {
     /// Lists application webhook registrations.
     ///

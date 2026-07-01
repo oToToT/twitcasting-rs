@@ -9,11 +9,14 @@ use tokio::{
 use twitcasting::{
     ApiResponse, AppAuth, BearerAuth, Client, ClientBuilder, CommentId, CommentListRequest,
     CommentText, Error, GiftRequest, Hashtag, Language, LiveSearchKind, LiveSearchRequest, MovieId,
-    MovieListRequest, OAuthClient, ScreenId, SearchTerms, Subtitle, SupportBatch,
-    SupporterListRequest, SupporterSort, ThumbnailOptions, Unauthenticated,
-    UpcomingSchedulesRequest, UserId, UserRef, UserSearchRequest, WebhookEvent, WebhookEvents,
-    WebhookListRequest,
+    MovieListRequest, ScreenId, SearchTerms, Subtitle, SupportBatch, SupporterListRequest,
+    SupporterSort, ThumbnailOptions, Unauthenticated, UpcomingSchedulesRequest, UserId, UserRef,
+    UserSearchRequest,
 };
+#[cfg(feature = "oauth")]
+use twitcasting::OAuthClient;
+#[cfg(feature = "webhooks")]
+use twitcasting::{WebhookEvent, WebhookEvents, WebhookListRequest};
 use url::Url;
 
 struct Server {
@@ -220,30 +223,36 @@ async fn covers_every_endpoint_family_and_auth_shape() {
     );
     assert_api_error(bearer.broadcasting().rtmp_credentials().await);
 
-    let events = WebhookEvents::new([WebhookEvent::LiveStart, WebhookEvent::LiveEnd]);
-    assert_api_error(
-        app.webhooks()
-            .list(&WebhookListRequest::default().limit(20))
-            .await,
-    );
-    let user_id = UserId::new("42");
-    assert_api_error(app.webhooks().register(&user_id, &events).await);
-    assert_api_error(app.webhooks().remove(&user_id, &events).await);
+    #[cfg(feature = "webhooks")]
+    {
+        let events = WebhookEvents::new([WebhookEvent::LiveStart, WebhookEvent::LiveEnd]);
+        assert_api_error(
+            app.webhooks()
+                .list(&WebhookListRequest::default().limit(20))
+                .await,
+        );
+        let user_id = UserId::new("42");
+        assert_api_error(app.webhooks().register(&user_id, &events).await);
+        assert_api_error(app.webhooks().remove(&user_id, &events).await);
+    }
     assert_api_error(app.users().get(&target).await);
 
-    let oauth = OAuthClient::builder(
-        "client-id",
-        "client-secret",
-        Url::parse("https://example.com/callback").unwrap(),
-    )
-    .unwrap()
-    .base_url(server.base_url.clone())
-    .build()
-    .unwrap();
-    let Error::Api(oauth_error) = oauth.exchange_code("code").await.unwrap_err() else {
-        panic!("expected OAuth API error");
-    };
-    assert_eq!(oauth_error.code, 1001);
+    #[cfg(feature = "oauth")]
+    {
+        let oauth = OAuthClient::builder(
+            "client-id",
+            "client-secret",
+            Url::parse("https://example.com/callback").unwrap(),
+        )
+        .unwrap()
+        .base_url(server.base_url.clone())
+        .build()
+        .unwrap();
+        let Error::Api(oauth_error) = oauth.exchange_code("code").await.unwrap_err() else {
+            panic!("expected OAuth API error");
+        };
+        assert_eq!(oauth_error.code, 1001);
+    }
 
     let requests = server.requests.lock().unwrap();
     assert!(requests.iter().any(|request| {
@@ -255,16 +264,20 @@ async fn covers_every_endpoint_family_and_auth_shape() {
         request.contains("/live/thumbnail")
             && !request.to_ascii_lowercase().contains("authorization:")
     }));
-    assert!(requests.iter().any(|request| {
-        request.starts_with("POST /webhooks HTTP/1.1")
-            && request.contains("authorization: Basic Y2xpZW50LWlkOmNsaWVudC1zZWNyZXQ=")
-            && request.contains(r#""events":["livestart","liveend"]"#)
-    }));
-    assert!(requests.iter().any(|request| {
-        request.starts_with(
-            "DELETE /webhooks?user_id=42&events%5B%5D=livestart&events%5B%5D=liveend HTTP/1.1",
-        )
-    }));
+    #[cfg(feature = "webhooks")]
+    {
+        assert!(requests.iter().any(|request| {
+            request.starts_with("POST /webhooks HTTP/1.1")
+                && request.contains("authorization: Basic Y2xpZW50LWlkOmNsaWVudC1zZWNyZXQ=")
+                && request.contains(r#""events":["livestart","liveend"]"#)
+        }));
+        assert!(requests.iter().any(|request| {
+            request.starts_with(
+                "DELETE /webhooks?user_id=42&events%5B%5D=livestart&events%5B%5D=liveend HTTP/1.1",
+            )
+        }));
+    }
+    #[cfg(feature = "oauth")]
     assert!(requests.iter().any(|request| {
         request.starts_with("POST /oauth2/access_token HTTP/1.1")
             && request.contains("grant_type=authorization_code")

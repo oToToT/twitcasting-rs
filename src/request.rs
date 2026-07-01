@@ -1,6 +1,8 @@
 use serde::Serialize;
 
-use crate::{CommentId, MovieId, UserRef, WebhookEvent};
+use crate::{CommentId, MovieId, UserRef};
+#[cfg(feature = "webhooks")]
+use crate::WebhookEvent;
 
 /// Pagination for movie history.
 #[derive(Clone, Debug, Default, Serialize)]
@@ -348,6 +350,7 @@ impl GiftRequest {
 }
 
 /// Webhook-list filtering and pagination.
+#[cfg(feature = "webhooks")]
 #[derive(Clone, Debug, Default, Serialize)]
 pub struct WebhookListRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -358,6 +361,7 @@ pub struct WebhookListRequest {
     user_id: Option<crate::UserId>,
 }
 
+#[cfg(feature = "webhooks")]
 impl WebhookListRequest {
     /// Sets the 1–50 result limit.
     pub fn limit(mut self, value: u32) -> Self {
@@ -381,9 +385,11 @@ impl WebhookListRequest {
 }
 
 /// Webhook events sent to TwitCasting for server-side validation.
+#[cfg(feature = "webhooks")]
 #[derive(Clone, Debug)]
 pub struct WebhookEvents(Vec<WebhookEvent>);
 
+#[cfg(feature = "webhooks")]
 impl WebhookEvents {
     /// Creates a webhook event list.
     #[must_use]
@@ -617,12 +623,14 @@ mod tests {
     // ── WebhookListRequest ───────────────────────────────────────────────────
 
     #[test]
+    #[cfg(feature = "webhooks")]
     fn webhook_list_request_default_omits_all() {
         let value = serde_json::to_value(WebhookListRequest::default()).unwrap();
         assert_eq!(value, serde_json::json!({}));
     }
 
     #[test]
+    #[cfg(feature = "webhooks")]
     fn webhook_list_request_with_user_id() {
         let req = WebhookListRequest::default().user_id(UserId::new("42"));
         let value = serde_json::to_value(req).unwrap();
@@ -632,6 +640,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "webhooks")]
     fn webhook_list_request_with_pagination() {
         let req = WebhookListRequest::default().limit(10).offset(5);
         let value = serde_json::to_value(req).unwrap();
@@ -680,6 +689,7 @@ mod tests {
     // ── WebhookEvents ────────────────────────────────────────────────────────
 
     #[test]
+    #[cfg(feature = "webhooks")]
     fn webhook_events_as_slice() {
         let events = WebhookEvents::new([WebhookEvent::LiveStart, WebhookEvent::LiveEnd]);
         assert_eq!(

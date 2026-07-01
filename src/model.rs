@@ -3,7 +3,9 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize};
+#[cfg(feature = "webhooks")]
+use serde::Serializer;
 use url::Url;
 
 use crate::{CommentId, LiveScheduleId, MovieId, ScreenId, SecretString, UserId};
@@ -453,6 +455,7 @@ pub struct LiveSearchResults {
 }
 
 /// Webhook event, preserving unknown future values.
+#[cfg(feature = "webhooks")]
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum WebhookEvent {
     /// A broadcast started.
@@ -469,6 +472,7 @@ pub enum WebhookEvent {
     Unknown(String),
 }
 
+#[cfg(feature = "webhooks")]
 impl WebhookEvent {
     /// Returns the wire event key.
     #[must_use]
@@ -484,6 +488,7 @@ impl WebhookEvent {
     }
 }
 
+#[cfg(feature = "webhooks")]
 impl Serialize for WebhookEvent {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -493,6 +498,7 @@ impl Serialize for WebhookEvent {
     }
 }
 
+#[cfg(feature = "webhooks")]
 impl<'de> Deserialize<'de> for WebhookEvent {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -510,6 +516,7 @@ impl<'de> Deserialize<'de> for WebhookEvent {
 }
 
 /// Registered webhook row.
+#[cfg(feature = "webhooks")]
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Webhook {
     /// Target user.
@@ -519,6 +526,7 @@ pub struct Webhook {
 }
 
 /// Webhook-list response.
+#[cfg(feature = "webhooks")]
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WebhookList {
     /// Total registered hooks.
@@ -528,6 +536,7 @@ pub struct WebhookList {
 }
 
 /// Webhook registration response.
+#[cfg(feature = "webhooks")]
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AddedWebhooks {
     /// Target user.
@@ -537,6 +546,7 @@ pub struct AddedWebhooks {
 }
 
 /// Webhook removal response.
+#[cfg(feature = "webhooks")]
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct DeletedWebhooks {
     /// Target user.
@@ -590,6 +600,7 @@ pub struct RtmpCredentials {
 }
 
 /// OAuth access-token response.
+#[cfg(feature = "oauth")]
 #[derive(Clone, Debug, Deserialize)]
 pub struct AccessToken {
     /// Token type, preserving unknown values.
@@ -601,6 +612,7 @@ pub struct AccessToken {
 }
 
 /// OAuth token type, preserving unknown future values.
+#[cfg(feature = "oauth")]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TokenType {
     /// Bearer token.
@@ -609,6 +621,7 @@ pub enum TokenType {
     Unknown(String),
 }
 
+#[cfg(feature = "oauth")]
 impl<'de> Deserialize<'de> for TokenType {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -632,9 +645,12 @@ mod tests {
         Application, Category, CategoryList, Comment, CommentList, DeletedComment, Gift, GiftList,
         HashtagUpdate, LiveSchedule, LiveSchedules, Movie, MovieInfo, MovieList, PostedComment,
         SubCategory, SubtitleUpdate, SupporterList, SupporterUser, SupportingList,
-        SupportingStatus, TokenType, UnixTimestamp, User, UserInfo, UserSearchResults,
-        VerifiedCredentials, Webhook, WebhookEvent, WebhookList,
+        SupportingStatus, UnixTimestamp, User, UserInfo, UserSearchResults, VerifiedCredentials,
     };
+    #[cfg(feature = "oauth")]
+    use super::TokenType;
+    #[cfg(feature = "webhooks")]
+    use super::{Webhook, WebhookEvent, WebhookList};
 
     #[test]
     fn timestamps_round_trip_before_and_after_epoch() {
@@ -651,15 +667,22 @@ mod tests {
     }
 
     #[test]
-    fn unknown_enums_are_preserved() {
+    #[cfg(feature = "webhooks")]
+    fn unknown_webhook_events_are_preserved() {
         let event: WebhookEvent = serde_json::from_str("\"futureevent\"").unwrap();
         assert_eq!(event, WebhookEvent::Unknown("futureevent".into()));
+    }
+
+    #[test]
+    #[cfg(feature = "oauth")]
+    fn unknown_token_types_are_preserved() {
         let token: TokenType = serde_json::from_str("\"DPoP\"").unwrap();
         assert_eq!(token, TokenType::Unknown("DPoP".into()));
     }
 
     // ── WebhookEvent round-trip ──────────────────────────────────────────────
 
+    #[cfg(feature = "webhooks")]
     fn webhook_event_round_trip(event: WebhookEvent, expected_wire: &str) {
         let serialized = serde_json::to_string(&event).unwrap();
         assert_eq!(serialized, format!("\"{expected_wire}\""));
@@ -668,31 +691,37 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "webhooks")]
     fn webhook_event_live_start_round_trip() {
         webhook_event_round_trip(WebhookEvent::LiveStart, "livestart");
     }
 
     #[test]
+    #[cfg(feature = "webhooks")]
     fn webhook_event_live_end_round_trip() {
         webhook_event_round_trip(WebhookEvent::LiveEnd, "liveend");
     }
 
     #[test]
+    #[cfg(feature = "webhooks")]
     fn webhook_event_schedule_create_round_trip() {
         webhook_event_round_trip(WebhookEvent::LiveScheduleCreate, "liveschedulecreate");
     }
 
     #[test]
+    #[cfg(feature = "webhooks")]
     fn webhook_event_schedule_update_round_trip() {
         webhook_event_round_trip(WebhookEvent::LiveScheduleUpdate, "livescheduleupdate");
     }
 
     #[test]
+    #[cfg(feature = "webhooks")]
     fn webhook_event_schedule_delete_round_trip() {
         webhook_event_round_trip(WebhookEvent::LiveScheduleDelete, "livescheduledelete");
     }
 
     #[test]
+    #[cfg(feature = "webhooks")]
     fn webhook_event_unknown_round_trip() {
         webhook_event_round_trip(WebhookEvent::Unknown("custom".into()), "custom");
     }
@@ -700,6 +729,7 @@ mod tests {
     // ── TokenType round-trip ─────────────────────────────────────────────────
 
     #[test]
+    #[cfg(feature = "oauth")]
     fn token_type_bearer_case_insensitive() {
         for wire in [r#""Bearer""#, r#""bearer""#, r#""BEARER""#] {
             let token: TokenType = serde_json::from_str(wire).unwrap();
@@ -1187,6 +1217,7 @@ mod tests {
     // ── Webhook / WebhookList ────────────────────────────────────────────────
 
     #[test]
+    #[cfg(feature = "webhooks")]
     fn webhook_round_trip() {
         let hook = Webhook {
             user_id: crate::UserId::new("1"),
@@ -1198,6 +1229,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "webhooks")]
     fn webhook_list_round_trip() {
         let list = WebhookList {
             all_count: 1,

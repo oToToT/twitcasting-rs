@@ -13,12 +13,19 @@ use crate::{
     auth::Authentication,
     error::{ApiError, ErrorEnvelope},
     model::UnixTimestamp,
-    resources::{
-        Broadcasting, Categories, Comments, Gifts, Movies, Search, Supporters, Users, Webhooks,
-    },
+    resources::{Broadcasting, Categories, Comments, Gifts, Movies, Search, Supporters, Users},
 };
+#[cfg(feature = "webhooks")]
+use crate::resources::Webhooks;
 
 const DEFAULT_BASE_URL: &str = "https://apiv2.twitcasting.tv/";
+
+pub(crate) fn default_http_client() -> Result<reqwest::Client, reqwest::Error> {
+    let builder = reqwest::Client::builder();
+    #[cfg(feature = "gzip")]
+    let builder = builder.gzip(true);
+    builder.build()
+}
 
 /// Parsed API rate-limit metadata.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -90,7 +97,7 @@ impl<A> ClientBuilder<A> {
         }
         let http = match self.http {
             Some(http) => http,
-            None => reqwest::Client::builder().gzip(true).build()?,
+            None => default_http_client()?,
         };
         Ok(Client {
             inner: Arc::new(Inner {
@@ -269,6 +276,7 @@ impl<A: Authentication> Client<A> {
 
     /// Application webhook operations.
     #[must_use]
+    #[cfg(feature = "webhooks")]
     pub fn webhooks(&self) -> Webhooks<'_, A> {
         Webhooks::new(self)
     }

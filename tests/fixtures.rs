@@ -582,6 +582,7 @@ fn live_search_results() {
 // ── WebHook ───────────────────────────────────────────────────────────────────
 
 #[test]
+#[cfg(feature = "webhooks")]
 fn webhook_list() {
     let json = r#"{
         "all_count":2,
@@ -597,6 +598,7 @@ fn webhook_list() {
 }
 
 #[test]
+#[cfg(feature = "webhooks")]
 fn added_webhooks() {
     let json = r#"{"user_id":"182224938","added_events":["livestart","liveend"]}"#;
     let added: AddedWebhooks = serde_json::from_str(json).unwrap();
@@ -608,6 +610,7 @@ fn added_webhooks() {
 }
 
 #[test]
+#[cfg(feature = "webhooks")]
 fn deleted_webhooks() {
     let json = r#"{"user_id":"182224938","deleted_events":["livescheduledelete"]}"#;
     let deleted: DeletedWebhooks = serde_json::from_str(json).unwrap();
@@ -644,6 +647,7 @@ fn rtmp_credentials_disabled() {
 // ── Access Token ──────────────────────────────────────────────────────────────
 
 #[test]
+#[cfg(feature = "oauth")]
 fn access_token() {
     let json = r#"{
         "token_type":"Bearer",

@@ -2,7 +2,10 @@ use reqwest::header::CONTENT_TYPE;
 use serde::Serialize;
 use url::Url;
 
-use crate::{AccessToken, ApiError, ApiResponse, Error, SecretString, error::ErrorEnvelope};
+use crate::{
+    AccessToken, ApiError, ApiResponse, Error, SecretString, client::default_http_client,
+    error::ErrorEnvelope,
+};
 
 const DEFAULT_BASE_URL: &str = "https://apiv2.twitcasting.tv/";
 
@@ -159,7 +162,7 @@ impl OAuthClientBuilder {
     pub fn build(self) -> Result<OAuthClient, Error> {
         let http = match self.http {
             Some(http) => http,
-            None => reqwest::Client::builder().gzip(true).build()?,
+            None => default_http_client()?,
         };
         Ok(OAuthClient {
             client_id: self.client_id,
